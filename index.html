@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NÖBETÇİ LİSTESİ</title>
+    <title>NÖBET LİSTESİ</title>
     <style>
         body {
             background-color: #000;
@@ -15,14 +15,36 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
-            text-align: center;
         }
-        #tarih-baslik { font-size: 3rem; color: #00d4ff; margin-bottom: 20px; }
-        table { width: 90%; border-collapse: collapse; background: #111; border: 5px solid #333; border-radius: 25px; overflow: hidden; }
-        th, td { padding: 25px; font-size: 3rem; border: 1px solid #222; text-align: left; }
-        th { background: #222; color: #00d4ff; width: 40%; }
-        td { font-weight: bold; }
-        .hata-mesaji { font-size: 3rem; color: #ff4444; padding: 40px; }
+        #tarih-baslik {
+            font-size: 3rem;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+        table {
+            width: 90%;
+            border-collapse: collapse;
+            border: 5px solid #ffffff;
+        }
+        th, td {
+            padding: 25px;
+            font-size: 3.2rem;
+            border: 2px solid #444;
+            text-align: left;
+        }
+        th {
+            background-color: #222;
+            color: #00d4ff;
+            width: 35%;
+        }
+        td { font-weight: bold; color: #fff; }
+        .hata {
+            font-size: 2.5rem;
+            color: #ff4444;
+            text-align: center;
+            padding: 40px;
+        }
     </style>
 </head>
 <body>
@@ -31,46 +53,44 @@
     <table id="tablo"></table>
 
     <script>
-        // Senin son attığın link
         const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSfQalRVQ1BeN02-dQkHNTL-RtoImYh1qO_eaM1mtFdP3TSjDc_wOzlxsfQL7as4uYIhvA9kdmustkK/pub?output=csv';
 
-        function tarihFormatla(tarihStr) {
-            // "15.04.2026" veya "2026-04-15" formatlarını temizler
-            return tarihStr.replace(/["']/g, "").trim();
-        }
-
-        async function veriyiGetir() {
+        async function veriyiCek() {
             try {
                 const simdi = new Date();
-                const gun = String(simdi.getDate()).padStart(2, '0');
-                const ay = String(simdi.getMonth() + 1).padStart(2, '0');
                 const yil = simdi.getFullYear();
-                
-                // Karşılaştırma için iki ihtimali de oluşturuyoruz
-                const bugunNoktali = `${gun}.${ay}.${yil}`; // 15.04.2026
-                const bugunTireli = `${yil}-${ay}-${gun}`; // 2026-04-15
+                const ay = String(simdi.getMonth() + 1).padStart(2, '0');
+                const gun = String(simdi.getDate()).padStart(2, '0');
+
+                // İhtimal 1: 2026-04-15 (Senin CSV'ndeki format)
+                const bugunTireli = `${yil}-${ay}-${gun}`;
+                // İhtimal 2: 15.04.2026
+                const bugunNoktali = `${gun}.${ay}.${yil}`;
 
                 document.getElementById('tarih-baslik').innerText = bugunNoktali + " NÖBETÇİLERİ";
 
                 const response = await fetch(csvUrl + '&t=' + new Date().getTime());
-                const data = await response.text();
-                const satirlar = data.split(/\r?\n/);
-                const basliklar = satirlar[0].split(',');
-
-                let bulundu = false;
+                const text = await response.text();
+                
+                // Satırları ayır ve temizle
+                const satirlar = text.split(/\r?\n/);
+                const basliklar = satirlar[0].split(',').map(b => b.trim().replace(/"/g, ''));
+                
                 let html = "";
+                let bulundu = false;
 
                 for (let i = 1; i < satirlar.length; i++) {
-                    const sutunlar = satirlar[i].split(',');
-                    const satirTarihi = tarihFormatla(sutunlar[0]);
+                    const sutunlar = satirlar[i].split(',').map(s => s.trim().replace(/"/g, ''));
+                    const satirTarihi = sutunlar[0];
 
-                    // EĞER TARİH NOKTALI VEYA TİRELİ OLARAK EŞLEŞİRSE
-                    if (satirTarihi === bugunNoktali || satirTarihi === bugunTireli) {
+                    // Tarih eşleşmesi (Boşlukları temizleyerek kontrol eder)
+                    if (satirTarihi === bugunTireli || satirTarihi === bugunNoktali) {
+                        // Bahçe, Zemin, 1.Kat, 2.Kat... (2. indisten başla)
                         for (let j = 2; j < basliklar.length; j++) {
-                            if (basliklar[j].trim()) {
+                            if (basliklar[j]) {
                                 html += `<tr>
-                                    <th>${basliklar[j].replace(/"/g, '')}</th>
-                                    <td>${(sutunlar[j] || '-').replace(/"/g, '')}</td>
+                                    <th>${basliklar[j]}</th>
+                                    <td>${sutunlar[j] || '-'}</td>
                                 </tr>`;
                             }
                         }
@@ -80,18 +100,18 @@
                 }
 
                 if (!bulundu) {
-                    document.getElementById('tablo').innerHTML = `<tr><td class="hata-mesaji">BUGÜN (${bugunNoktali}) İÇİN KAYIT YOK<br><small style="font-size:1rem; color:gray;">Excel'deki tarih formatını kontrol edin.</small></td></tr>`;
+                    document.getElementById('tablo').innerHTML = `<tr><td class="hata">BUGÜN İÇİN VERİ BULUNAMADI<br><small style="color:gray">Aranan: ${bugunTireli}</small></td></tr>`;
                 } else {
                     document.getElementById('tablo').innerHTML = html;
                 }
 
-            } catch (h) {
-                document.getElementById('tablo').innerHTML = `<tr><td class="hata-mesaji">BAĞLANTI HATASI</td></tr>`;
+            } catch (e) {
+                document.getElementById('tablo').innerHTML = `<tr><td class="hata">BAĞLANTI HATASI</td></tr>`;
             }
         }
 
-        veriyiGetir();
-        setInterval(veriyiGetir, 600000); // 10 dakikada bir kontrol
+        veriyiCek();
+        setInterval(veriyiCek, 600000); // 10 dakikada bir kontrol
     </script>
 </body>
 </html>
