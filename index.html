@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Günün Menüsü - TV Panel</title>
+    <style>
+        /* TV Ekranı İçin Özel Tasarım */
+        body {
+            background-color: #000000;
+            color: #ffffff;
+            font-family: 'Segoe UI', Roboto, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+        }
+
+        #tarih-baslik {
+            font-size: 3.5rem;
+            color: #00d4ff;
+            margin-bottom: 20px;
+            font-weight: 300;
+            text-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+        }
+
+        #ana-panel {
+            background: linear-gradient(145deg, #0f0f0f, #050505);
+            padding: 70px 50px;
+            border-radius: 60px;
+            border: 5px solid #1a1a1a;
+            box-shadow: 0 0 80px rgba(0,0,0,1);
+            width: 85%;
+            min-height: 350px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #menu-icerik {
+            font-size: 7.5rem;
+            font-weight: 900;
+            margin: 0;
+            text-transform: uppercase;
+            line-height: 1.1;
+            letter-spacing: -1px;
+        }
+
+        #alt-bar {
+            position: fixed;
+            bottom: 30px;
+            font-size: 1.2rem;
+            color: #222;
+            text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="tarih-baslik">YÜKLENİYOR...</div>
+    
+    <div id="ana-panel">
+        <p id="menu-icerik">BAĞLANTI KURULUYOR...</p>
+    </div>
+
+    <div id="alt-bar">Google Sheets Canlı Veri Sistemi</div>
+
+    <script>
+        // Yeni verdiğin CSV linki
+        const csvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRqxF1VpopXePOy1x9E21q6HkY2NHPCNqmF7smgt5u61q9EXhD2tv_du4cpvvDLqp1pKV4qkVHWZP-i/pub?output=csv';
+
+        async function veriyiGuncelle() {
+            try {
+                // Bugünün tarihini GG.AA.YYYY formatında oluştur (Örn: 15.04.2026)
+                const simdi = new Date();
+                const gun = String(simdi.getDate()).padStart(2, '0');
+                const ay = String(simdi.getMonth() + 1).padStart(2, '0');
+                const yil = simdi.getFullYear();
+                const bugun = `${gun}.${ay}.${yil}`;
+
+                document.getElementById('tarih-baslik').innerText = bugun;
+
+                // Veriyi çek (Önbelleği aşmak için zaman damgası eklendi)
+                const response = await fetch(csvUrl + '&t=' + new Date().getTime());
+                const csvMetni = await response.text();
+                
+                // Satırları ayır
+                const satirlar = csvMetni.split(/\r?\n/);
+                let bulundu = false;
+
+                for (let i = 0; i < satirlar.length; i++) {
+                    // Hem virgül hem de noktalı virgül desteği
+                    const sutunlar = satirlar[i].includes(';') ? satirlar[i].split(';') : satirlar[i].split(',');
+                    
+                    // İlk sütundaki tarihi temizle ve bugünün tarihiyle karşılaştır
+                    const satirTarihi = sutunlar[0].replace(/"/g, '').trim();
+
+                    if (satirTarihi === bugun) {
+                        // Eğer tarih eşleşirse 2. sütundaki veriyi al
+                        const yemekVerisi = sutunlar[1].replace(/"/g, '').trim();
+                        document.getElementById('menu-icerik').innerText = yemekVerisi;
+                        document.getElementById('menu-icerik').style.color = "#ffffff";
+                        bulundu = true;
+                        break;
+                    }
+                }
+
+                if (!bulundu) {
+                    document.getElementById('menu-icerik').innerText = "BUGÜN İÇİN KAYIT YOK";
+                    document.getElementById('menu-icerik').style.color = "#444";
+                }
+
+            } catch (hata) {
+                console.error("Hata:", hata);
+                document.getElementById('menu-icerik').innerText = "ERİŞİM HATASI";
+                document.getElementById('menu-icerik').style.color = "#ff4444";
+            }
+        }
+
+        // İlk açılışta veriyi getir
+        veriyiGuncelle();
+        
+        // Her 10 dakikada bir (600.000 ms) arka planda kontrol et
+        setInterval(veriyiGuncelle, 600000);
+    </script>
+</body>
+</html>
